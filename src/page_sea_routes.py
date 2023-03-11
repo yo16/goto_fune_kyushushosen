@@ -44,7 +44,11 @@ def get_sea_route_schedules(page_info):
             # このブロックは、スケジュールブロック
             start_schedule_block = False
 
-            # スケジュールを読んで格納
+            # print(schedule_info["schedule_name"])
+            # スケジュールを読む
+            schedule_info['plans'] = read_schedule_block(b)
+
+            # 結果オブジェクトに設定
             ret.append(schedule_info)
 
         elif (is_schedule_start_block(b)):
@@ -54,6 +58,7 @@ def get_sea_route_schedules(page_info):
             # スケジュール情報を読んで作成
             schedule_info = read_schedule_start_block(b)
 
+    # test_print_schedule_info(ret)
     return ret
 
 
@@ -107,7 +112,7 @@ def parse_date_comment(c):
             {from, to}
         ]
     """
-    debug_parse_date_comment = True
+    debug_parse_date_comment = False
     ret = []
     if (debug_parse_date_comment):
         print(c)
@@ -216,4 +221,102 @@ def read_schedule_block(block):
                 },]
             },]
     """
-    return []
+    ret = []
+    ports_list = []
+    time_list = None
+
+    # trを取得
+    trs = block.xpath('div/div/div/div/table/tbody/tr')
+    # 読み取り
+    for i, tr in enumerate(trs):
+        # tdを取得
+        tds = tr.xpath('td')
+
+        # tdの数を使って、time_listの箱だけ作る
+        if (i == 0):
+            time_list = [[] for _ in range(len(tds)-2)]
+
+        for j, td in enumerate(tds):
+            # テキストを抽出
+            cur_text = ""       # 一致するものがないときは空
+            cell_div = td.xpath('div/span')  # spanがあるときとないときがある
+            if (len(cell_div) == 0):
+                cell_div = td.xpath('div')
+                if (len(cell_div) > 0):
+                    cur_text = cell_div[0].text
+            else:
+                cur_text = cell_div[0].text
+
+            # １列目は港名
+            if (j == 0):
+                ports_list.append(cur_text)
+            # ２列目は発着（使わない）
+            # ３列目以降が時刻
+            if (j >= 2):
+                time_str = None
+                # 時刻フォーマットのみ
+                m = re.search(r'\d+:\d+', cur_text)
+                if (m):
+                    time_str = m.group()
+                time_list[j-2].append(time_str)
+    # print(ports_list)
+    # print(time_list)
+
+    dpt_arvs = {}
+    # 港のfrom-toの組み合わせで時刻を設定
+    for i, dpt in enumerate(ports_list[:-1]):
+        for j_1, arv in enumerate(ports_list[i+1:]):
+            # enumerateの結果はそのままではports_listに使えないので注意
+            j = i + j_1 + 1
+            # time_listは、表の１日の本数と一致する
+            for k, tm in enumerate(time_list):    # １本ごとの処理にする
+                if ((tm[i] is not None) and (tm[j] is not None)):
+                    if (dpt not in dpt_arvs.keys()):
+                        dpt_arvs[dpt] = {}
+                    if (arv not in dpt_arvs[dpt].keys()):
+                        dpt_arvs[dpt][arv] = []
+
+                    dpt_arvs[dpt][arv].append({
+                        'departure_time': tm[i],
+                        'arrival_time': tm[j]
+                    })
+    # print(dpt_arvs)
+
+    # 戻り値に移し替え
+    for k_dpt, v_dpt in dpt_arvs.items():
+        for k_arv, v_arv in v_dpt.items():
+            ret.append({
+                'departure_port': k_dpt,
+                'arrival_port': k_arv,
+                'timetable': v_arv
+            })
+    # print(ret)
+
+    return ret
+
+
+def test_print_schedule_info(schedule_infos):
+    """schedule_infoを正しく読めているか、確認するための関数
+
+    Args:
+        schedule_infos (object): 読み込んだschedule_infoオブジェクト
+    """
+    for si in schedule_infos:
+        sche_name = si['schedule_name']
+        print(f'■{sche_name}')
+
+        print('period')
+        for p in si['periods']:
+            from_dt = p['from']
+            to_dt = p['to']
+            print(f'  - {from_dt} -> {to_dt}')
+
+        print('time_table')
+        for p in si['plans']:
+            departure_port = p['departure_port']
+            arrival_port = p['arrival_port']
+            print(f' - {departure_port} -> {arrival_port}')
+            for tm in p['timetable']:
+                tm_from = tm['departure_time']
+                tm_to = tm['arrival_time']
+                print(f'    + {tm_from} -> {tm_to}')

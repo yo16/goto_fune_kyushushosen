@@ -17,7 +17,7 @@ def main():
         schedules.extend(schedule_list)
         break   # for debug
 
-    #print(schedules)
+    # print(schedules)
 
 
 if __name__ == '__main__':
