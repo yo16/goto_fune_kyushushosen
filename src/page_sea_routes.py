@@ -3,7 +3,7 @@
 import datetime
 import re
 
-from common import get_page
+from common import get_page, get_full_url
 
 
 def get_sea_route_schedules(page_info):
@@ -22,7 +22,8 @@ def get_sea_route_schedules(page_info):
                     departure_time (str),
                     arrival_time (str)
                 },]
-            },]
+            },],
+            url(str)
         },]
     """
     ret = []
@@ -57,6 +58,9 @@ def get_sea_route_schedules(page_info):
 
             # スケジュール情報を読んで作成
             schedule_info = read_schedule_start_block(b)
+
+            # ついでにURLも書いておく
+            schedule_info['url'] = get_full_url(page_info['url'])
 
     # test_print_schedule_info(ret)
     return ret

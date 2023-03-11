@@ -3,6 +3,7 @@
 
 from page_top import get_shipping_page_name_links
 from page_sea_routes import get_sea_route_schedules
+from format_to import format_to_goto_fune
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
         break   # for debug
 
     # print(schedules)
+    format_to_goto_fune(schedules)
 
 
 if __name__ == '__main__':

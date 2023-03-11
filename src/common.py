@@ -44,12 +44,13 @@ def get_page(page_url):
         with open(local_file_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
     else:
-        print(f'Crawling... {KUSHO_DOMAIN}{page_url}')
+        full_url = get_full_url(page_url)
+        print(f'Crawling... {full_url}')
         # ちょっと待つ（負荷をかけないように）
         time.sleep(1.5)
 
         # 取得
-        r = requests.get(f'{KUSHO_DOMAIN}{page_url}')
+        r = requests.get(f'{full_url}')
         assert r.status_code == 200, 'response error!'
 
         sp = bs(r.content, 'html.parser')
@@ -63,3 +64,7 @@ def get_page(page_url):
     lxml_data = html.fromstring(html_content)
 
     return lxml_data
+
+
+def get_full_url(url):
+    return f'{KUSHO_DOMAIN}{url}'
