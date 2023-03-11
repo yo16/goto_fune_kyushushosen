@@ -2,7 +2,7 @@
 """
 
 from page_top import get_shipping_page_name_links
-from page_sea_routes import get_schedule
+from page_sea_routes import get_sea_route_schedules
 
 
 def main():
@@ -13,9 +13,11 @@ def main():
     # ダイヤを取得
     schedules = []
     for p in pages:
-        schedule_list = get_schedule(p)
-        print(schedule_list)
+        schedule_list = get_sea_route_schedules(p)
+        schedules.extend(schedule_list)
         break   # for debug
+
+    #print(schedules)
 
 
 if __name__ == '__main__':
