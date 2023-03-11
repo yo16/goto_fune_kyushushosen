@@ -31,7 +31,7 @@ def get_page(page_url):
         page_url_dir = page_url_dir[1:]
 
     # ローカルファイル用のフォルダ
-    today = f'{datetime.date.today().year}{datetime.date.today().month}{datetime.date.today().day}'
+    today = get_today_str()
     local_file_dir = os.path.join(os.getcwd(), PAGE_SAVE_DIR, page_url_dir)
     os.makedirs(local_file_dir, exist_ok=True)
 
@@ -68,3 +68,15 @@ def get_page(page_url):
 
 def get_full_url(url):
     return f'{KUSHO_DOMAIN}{url}'
+
+
+def get_today_str():
+    year = datetime.date.today().year
+    month = datetime.date.today().month
+    day = datetime.date.today().day
+
+    return f'{year}{month:02}{day:02}'
+
+
+if __name__ == '__main__':
+    print(get_today_str())

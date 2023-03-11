@@ -2,6 +2,8 @@ import datetime
 import json
 import os
 
+from common import get_today_str
+
 # goto_funeで定義されている港のid
 PORTS = [
     {'id': 0,  'name': '長崎',    'group': 9},   {'id': 1,  'name': '奈良尾',  'group': 0},   {'id': 2,  'name': '福江',    'group': 1},   {'id': 3,  'name': '奈留島',  'group': 2},   {'id': 4,  'name': '有川',    'group': 0},   {'id': 5,  'name': '佐世保',  'group': 9},   {'id': 6,  'name': '小値賀',  'group': 2},   {'id': 7,  'name': '宇久平',  'group': 2},   {'id': 8,  'name': '博多',    'group': 9},   {'id': 10, 'name': '青方',    'group': 0},   {'id': 11, 'name': '奥浦',    'group': 1},   {'id': 12, 'name': '田ノ浦',  'group': 2},   {
@@ -18,7 +20,8 @@ def format_to_goto_fune(schedule_infos, output_dir='./output'):
         schedule_infos (list): スケジュール情報
     """
     # 出力先
-    today_str = f'{datetime.date.today().year}{datetime.date.today().month}{datetime.date.today().day}.json'
+    today_str = get_today_str()
+    file_name = f'{today_str}.json'
 
     ret = {
         'ship_campany': 0,
@@ -69,6 +72,6 @@ def format_to_goto_fune(schedule_infos, output_dir='./output'):
 
     # 出力
     os.makedirs(output_dir, exist_ok=True)
-    output_file_path = os.path.join(output_dir, today_str)
+    output_file_path = os.path.join(output_dir, file_name)
     with open(output_file_path, mode='w', encoding='utf-8') as f:
         json.dump(ret, f, indent=4)
