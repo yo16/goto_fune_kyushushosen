@@ -16,7 +16,6 @@ def main():
     for p in pages:
         schedule_list = get_sea_route_schedules(p)
         schedules.extend(schedule_list)
-        break   # for debug
 
     # print(schedules)
     format_to_goto_fune(schedules)

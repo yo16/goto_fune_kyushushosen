@@ -34,6 +34,8 @@ def get_sea_route_schedules(page_info):
     # block-listsのdivを順番に見る
     div_blocks = lxml_data.xpath('//*[@id="block-lists"]/div')
     start_schedule_block = False
+    got_period_info = False
+    write_period_next = False
     schedule_info = {}
     for b in div_blocks:
         # スケジュール開始ブロックかどうか判定し、
@@ -45,19 +47,36 @@ def get_sea_route_schedules(page_info):
             # このブロックは、スケジュールブロック
             start_schedule_block = False
 
-            # print(schedule_info["schedule_name"])
+            print(schedule_info["schedule_name"])
             # スケジュールを読む
             schedule_info['plans'] = read_schedule_block(b)
 
             # 結果オブジェクトに設定
             ret.append(schedule_info)
 
+            # 次に書くフラグが立っている場合、今のブロックの情報をもとに、
+            # １つ前の情報を書き換える
+            if (write_period_next):
+                period_info = calc_period_from_prev_schedule_info(
+                    ret[len(ret)-1]     # 元となる、今の情報
+                )
+                print(period_info)
+                ret[len(ret)-2]['periods'] = period_info
+
+                write_period_next = False
+
+            # 追加した情報に、periodがない場合、次のブロックから算出するため、
+            # 次に書くフラグを立てておく
+            if (not got_period_info):
+                write_period_next = True
+            got_period_info = False
+
         elif (is_schedule_start_block(b)):
             # スケジュール開始ブロック
             start_schedule_block = True
 
             # スケジュール情報を読んで作成
-            schedule_info = read_schedule_start_block(b)
+            schedule_info, got_period_info = read_schedule_start_block(b)
 
             # ついでにURLも書いておく
             schedule_info['url'] = get_full_url(page_info['url'])
@@ -91,23 +110,28 @@ def read_schedule_start_block(block):
         schedule_info (object): {
             schedule_name (str),
             periods (list): [{from, to}]
-        }
+        },
+        True: 時刻を取得できた | False:取得できなかった
     """
-    title_elm = block.xpath('div/div/div/h3/span[@class="vi-direct-item"]')[0]
-    comment_elm = block.xpath('div/div/div/div/div/div')[0]
-
     # スケジュール名
+    title_elm = block.xpath('div/div/div/h3/span[@class="vi-direct-item"]')[0]
     schedule_name = title_elm.text
 
     # コメント
-    comment = comment_elm.text
+    comment = ''
+    comment_elms = block.xpath('div/div/div/div/div/div')
+    if (len(comment_elms) > 0):  # ないときがある！
+        comment_elm = block.xpath('div/div/div/div/div/div')[0]
+        comment = comment_elm.text
+
     periods = parse_date_comment(comment)
 
-    return {'schedule_name': schedule_name, 'periods': periods}
+    return {'schedule_name': schedule_name, 'periods': periods}, (len(periods) > 0)
 
 
 def parse_date_comment(c):
     """スケジュールが適用される日付の文字列を読み解いて、from/toの組み合わせにする
+    cが空の場合は空を返す
 
     Args:
         c (str): 日付が部分
@@ -116,10 +140,17 @@ def parse_date_comment(c):
             {from, to}
         ]
     """
-    debug_parse_date_comment = False
+    debug_parse_date_comment = True
     ret = []
     if (debug_parse_date_comment):
+        print('parse_date_comment start')
         print(c)
+
+    # 何も書いていないときや、本当にコメントしか書いていないときはスキップ
+    if (len(c) == 0):
+        return ret
+    if (not re.search(r'\d', c)):   # 数字が入っていない
+        return ret
 
     year = datetime.date.today().year
     month = datetime.date.today().month
@@ -132,7 +163,7 @@ def parse_date_comment(c):
         cur_w = cur_w.strip()
 
         # "～"で日付が範囲指定されているパターン
-        m_kara = re.search(r'^(.+)～(.+)', cur_w)
+        m_kara = re.search(r'^([.]+)～(.+)', cur_w)
         if (m_kara):
             ymds = []   # fromとto
             for s in m_kara.groups():
@@ -175,6 +206,9 @@ def parse_date_comment(c):
                     print(current_from_to)
                 ret.append(current_from_to)
 
+    if (debug_parse_date_comment):
+        print('parse_date_comment end')
+
     return ret
 
 
@@ -196,7 +230,7 @@ def parse_ymd(s, year, month):
         md_str = m.groups()[2]
 
     # "／"があったら月と日
-    m = re.search(r'^(\d+)[／/](\d+)$', md_str)
+    m = re.search(r'^(\d+)[／/](\d+)', md_str)  # 最後に"（予定）"とかがあるときがある
     d_str = md_str
     if (m):
         # 月のパートがあったら月を更新
@@ -225,6 +259,10 @@ def read_schedule_block(block):
                 },]
             },]
     """
+    debug_read_schedule_block1 = True
+    if debug_read_schedule_block1:
+        print('read_schedule_block')
+
     ret = []
     ports_list = []
     time_list = None
@@ -235,24 +273,31 @@ def read_schedule_block(block):
     for i, tr in enumerate(trs):
         # tdを取得
         tds = tr.xpath('td')
+        if debug_read_schedule_block1:
+            print(i)
 
         # tdの数を使って、time_listの箱だけ作る
         if (i == 0):
             time_list = [[] for _ in range(len(tds)-2)]
 
         for j, td in enumerate(tds):
+            if debug_read_schedule_block1:
+                print(i, j)
             # テキストを抽出
             cur_text = ""       # 一致するものがないときは空
-            cell_div = td.xpath('div/span')  # spanがあるときとないときがある
-            if (len(cell_div) == 0):
-                cell_div = td.xpath('div')
+            xpath_list = ['div/span/span', 'div/span', 'div']
+            for p in xpath_list:
+                cell_div = td.xpath(p)
                 if (len(cell_div) > 0):
+                    # 見つけた
                     cur_text = cell_div[0].text
-            else:
-                cur_text = cell_div[0].text
+                    break
 
             # １列目は港名
             if (j == 0):
+                # たまに間違って、"着"か"発"が書いてあるから削除
+                if (re.search(f'.*[発着]$', cur_text)):
+                    cur_text = cur_text[:-1]
                 ports_list.append(cur_text)
             # ２列目は発着（使わない）
             # ３列目以降が時刻
@@ -299,6 +344,73 @@ def read_schedule_block(block):
     return ret
 
 
+def calc_period_from_prev_schedule_info(refered_schedule_info):
+    """参考とするスケジュール情報をもとに、スケジュール情報を作成して返す
+    具体的には、参考とするスケジュール情報でない日を、設定する
+
+    Args:
+        refered_schedule_info (object): 参考とするスケジュール情報
+    """
+    new_periods = []
+
+    # 今年
+    this_year = datetime.date.today().year
+    # 翌年
+    next_year = this_year + 1
+
+    # 開始日
+    start_dt_str = f'{this_year}/1/1'
+    start_dt = datetime.datetime.strptime(start_dt_str, '%Y/%m/%d')
+    # 終了日
+    end_dt_str = f'{next_year}/12/31'
+    end_dt = datetime.datetime.strptime(end_dt_str, '%Y/%m/%d')
+
+    # 今年の1/1から12/31の範囲で、refered_schedule_info.
+    for p in refered_schedule_info['periods']:
+        # 参考のfrom/to
+        period_from = p['from']
+        period_to = p['to']
+        period_from_dt = datetime.datetime.strptime(
+            period_from, '%Y/%m/%d')
+        period_to_dt = datetime.datetime.strptime(
+            period_to, '%Y/%m/%d')
+
+        # fromの前日
+        period_from_dt_pre = period_from_dt - datetime.timedelta(1)
+        # toの翌日
+        period_to_dt_next = period_to_dt + datetime.timedelta(1)
+
+        # もしfromの前日(toになる)が、end_dtより先の場合は、
+        # end_dtを最終日にする
+        if (end_dt < period_from_dt_pre):
+            period_from_dt_pre = end_dt
+
+        # 追加
+        new_periods.append({
+            'from': start_dt.strftime('%Y/%m/%d'),
+            'to': period_from_dt_pre.strftime('%Y/%m/%d')
+        })
+
+        # 次のためのstart_dtを更新
+        # toの翌日か、end_dtの小さいほう
+        if (period_to_dt_next < end_dt):
+            # 普通はこちら
+            start_dt = period_to_dt_next
+        else:
+            # periodの日付がおかしかったり、end_dtが短い場合にこれになりうる
+            start_dt = end_dt
+
+    # 最後のfromとto
+    # start_dtから、end_dtまで
+    new_periods.append({
+        'from': start_dt.strftime('%Y/%m/%d'),
+        'to': end_dt.strftime('%Y/%m/%d')
+    })
+
+    # 対象を返す
+    return new_periods
+
+
 def test_print_schedule_info(schedule_infos):
     """schedule_infoを正しく読めているか、確認するための関数
 
@@ -309,7 +421,7 @@ def test_print_schedule_info(schedule_infos):
         sche_name = si['schedule_name']
         print(f'■{sche_name}')
 
-        print('period')
+        print('periods')
         for p in si['periods']:
             from_dt = p['from']
             to_dt = p['to']
