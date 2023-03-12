@@ -50,7 +50,23 @@ def get_sea_route_schedules(page_info):
 
             print(schedule_info["schedule_name"])
             # スケジュールを読む
-            schedule_info['plans'] = read_schedule_block(b)
+            plans = read_schedule_block(b)
+            # periodも取ってないしスケジュールも取れなかった場合
+            if ((not got_period_info) and (len(plans) == 0)):
+                # 全便休航ということがこのブロックに書いてある
+                # (本来はスケジュール開始ブロックに書かれるはずの)日付も
+                # ここに書いてしまっている
+                # なので今のブロックをスケジュール開始ブロックとみなして
+                # スケジュール情報を読む
+                schedule_info_illegular, got_period_info_illegular = read_schedule_start_block(
+                    b)
+                # ここで得たperiodsを、カレントのschedule_infoに設定
+                schedule_info['periods'] = schedule_info_illegular['periods']
+                # その場合plansは空だが、休航なので問題なし
+                # さらにこの後の処理で、ドック期間を除く処理が走る
+            print('ぷらんず')
+            print(plans)
+            schedule_info['plans'] = plans
 
             # 結果オブジェクトに設定
             ret.append(schedule_info)
@@ -115,8 +131,11 @@ def read_schedule_start_block(block):
         True: 時刻を取得できた | False:取得できなかった
     """
     # スケジュール名
-    title_elm = block.xpath('div/div/div/h3/span[@class="vi-direct-item"]')[0]
-    schedule_name = title_elm.text
+    title_elms = block.xpath('div/div/div/h3/span[@class="vi-direct-item"]')
+    if (len(title_elms) > 0):
+        schedule_name = title_elms[0].text
+    else:
+        schedule_name = ''
 
     # コメント
     comment = ''
