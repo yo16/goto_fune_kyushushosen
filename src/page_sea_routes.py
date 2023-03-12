@@ -246,6 +246,11 @@ def parse_ymd(s, year, month):
         d_str = m.groups()[1]
         month = int(m_str)
 
+    # d_strに数値以外があったら除外
+    m = re.search(r'\d+', d_str)
+    assert m, 'Not contain an integer'
+    d_str = m.group()
+
     # 日
     day = int(d_str)
 
