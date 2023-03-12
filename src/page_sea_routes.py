@@ -161,10 +161,14 @@ def parse_date_comment(c):
         cur_w = w
         # スペースをトリム
         cur_w = cur_w.strip()
+        if (debug_parse_date_comment):
+            print(f'cur_w:{cur_w}')
 
         # "～"で日付が範囲指定されているパターン
-        m_kara = re.search(r'^([.]+)～(.+)', cur_w)
+        m_kara = re.search(r'^(.+)～(.+)', cur_w)
         if (m_kara):
+            if (debug_parse_date_comment):
+                print('kara')
             ymds = []   # fromとto
             for s in m_kara.groups():
                 # YMDをパース
@@ -183,6 +187,8 @@ def parse_date_comment(c):
             # "・"で複数指定されているパターン
             m_dot = re.search(r'^(.+)・(.+)', cur_w)
             if (m_dot):
+                if (debug_parse_date_comment):
+                    print('dot')
                 # "・"でsplit
                 for s in re.split(r'・', cur_w):
                     # YMDをパース
@@ -196,6 +202,8 @@ def parse_date_comment(c):
                     ret.append(current_from_to)
 
             else:
+                if (debug_parse_date_comment):
+                    print('single')
                 # それ以外（～も・もない）
                 year, month, day = parse_ymd(cur_w, year, month)
 
