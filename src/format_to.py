@@ -75,4 +75,4 @@ def format_to_goto_fune(schedule_infos, output_dir='./output'):
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, file_name)
     with open(output_file_path, mode='w', encoding='utf-8') as f:
-        json.dump(ret, f, indent=4)
+        json.dump(ret, f, indent=4, ensure_ascii=False)
