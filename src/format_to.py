@@ -56,7 +56,9 @@ def format_to_goto_fune(schedule_infos, output_dir='./output'):
             arrival_port = map_name2id[p['arrival_port']]
             plan = {
                 'from': departure_port,
+                'from_str': p['departure_port'],
                 'to': arrival_port,
+                'to_str': p['arrival_port'],
                 'timetable': []
             }
             for tm in p['timetable']:
