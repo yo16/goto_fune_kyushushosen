@@ -1,6 +1,7 @@
 """航路ごとのページを読む関数
 """
 import datetime
+from dateutil.relativedelta import relativedelta
 import re
 
 from common import get_page, get_full_url
@@ -238,12 +239,19 @@ def parse_ymd(s, year, month):
         md_str = m.groups()[2]
 
     # "／"があったら月と日
-    m = re.search(r'^(\d+)[／/](\d+)', md_str)  # 最後に"（予定）"とかがあるときがある
+    m = re.search(r'^(\d+)[／/]((\d+)|末)', md_str)  # 最後に"（予定）"とかがあるときがある
     d_str = md_str
     if (m):
         # 月のパートがあったら月を更新
         m_str = m.groups()[0]
-        d_str = m.groups()[1]
+        if (m.groups()[1] == '末'):
+            # 翌月の1日から1日引く=今月の月末
+            dt = datetime.date(year, int(m_str), 1) + \
+                relativedelta(months=+1, day=1, days=-1)
+            # 無駄だけど普通のケースに合わせてstrにしておく
+            d_str = str(dt.day)
+        else:
+            d_str = m.groups()[1]
         month = int(m_str)
 
     # d_strに数値以外があったら除外

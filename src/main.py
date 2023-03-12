@@ -14,7 +14,7 @@ def main():
     # ダイヤを取得
     schedules = []
     for p in pages:
-        if (p['url'] != '/publics/index/376/'):
+        if (p['url'] != '/publics/index/381/'):
             continue
         schedule_list = get_sea_route_schedules(p)
         schedules.extend(schedule_list)
