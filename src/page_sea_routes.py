@@ -1,10 +1,11 @@
 """航路ごとのページを読む関数
 """
-import datetime
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import re
 
 from common import get_page, get_full_url
+from date_range import dates_subtract
 
 
 def get_sea_route_schedules(page_info):
@@ -48,7 +49,6 @@ def get_sea_route_schedules(page_info):
             # このブロックは、スケジュールブロック
             start_schedule_block = False
 
-            print(schedule_info["schedule_name"])
             # スケジュールを読む
             plans = read_schedule_block(b)
             # periodも取ってないしスケジュールも取れなかった場合
@@ -58,14 +58,12 @@ def get_sea_route_schedules(page_info):
                 # ここに書いてしまっている
                 # なので今のブロックをスケジュール開始ブロックとみなして
                 # スケジュール情報を読む
-                schedule_info_illegular, got_period_info_illegular = read_schedule_start_block(
-                    b)
+                schedule_info_illegular, _ = \
+                    read_schedule_start_block(b)
                 # ここで得たperiodsを、カレントのschedule_infoに設定
                 schedule_info['periods'] = schedule_info_illegular['periods']
                 # その場合plansは空だが、休航なので問題なし
                 # さらにこの後の処理で、ドック期間を除く処理が走る
-            print('ぷらんず')
-            print(plans)
             schedule_info['plans'] = plans
 
             # 結果オブジェクトに設定
@@ -75,6 +73,7 @@ def get_sea_route_schedules(page_info):
             # １つ前の情報を書き換える
             if (write_period_next):
                 period_info = calc_period_from_prev_schedule_info(
+                    ret[len(ret)-2],    # 前の情報
                     ret[len(ret)-1]     # 元となる、今の情報
                 )
                 print(period_info)
@@ -166,14 +165,18 @@ def parse_date_comment(c):
         print('parse_date_comment start')
         print(c)
 
-    # 何も書いていないときや、本当にコメントしか書いていないときはスキップ
-    if (len(c) == 0):
-        return ret
-    if (not re.search(r'\d', c)):   # 数字が入っていない
-        return ret
+    # 何も書いていないときや、本当にコメントしか書いていないときは、
+    # 今年の1/1～来年の12/31で固定
+    if ((len(c) == 0) or (not re.search(r'\d', c))):   # 空 or 数字が入っていない
+        this_year = date.today().year
+        next_year = this_year + 1
+        return [{
+            'from': f'{this_year}/1/1',
+            'to': f'{next_year}/12/31'
+        }]
 
-    year = datetime.date.today().year
-    month = datetime.date.today().month
+    year = date.today().year
+    month = date.today().month
 
     # "、"でsplit
     words = re.split(r'、\s*', c)
@@ -265,7 +268,7 @@ def parse_ymd(s, year, month):
         m_str = m.groups()[0]
         if (m.groups()[1] == '末'):
             # 翌月の1日から1日引く=今月の月末
-            dt = datetime.date(year, int(m_str), 1) + \
+            dt = date(year, int(m_str), 1) + \
                 relativedelta(months=+1, day=1, days=-1)
             # 無駄だけど普通のケースに合わせてstrにしておく
             d_str = str(dt.day)
@@ -384,68 +387,32 @@ def read_schedule_block(block):
     return ret
 
 
-def calc_period_from_prev_schedule_info(refered_schedule_info):
+def calc_period_from_prev_schedule_info(pref_schedule_info, refered_schedule_info):
     """参考とするスケジュール情報をもとに、スケジュール情報を作成して返す
-    具体的には、参考とするスケジュール情報でない日を、設定する
+    具体的には、前のスケジュール情報のperiodから、今のスケジュール情報の
+    periodを除外する。
+    periodsはいずれも、古い順に入っている前提。
 
     Args:
-        refered_schedule_info (object): 参考とするスケジュール情報
+        pref_schedule_info (object): 前のスケジュール情報（ドック期間以外）
+        refered_schedule_info (object): 今のスケジュール情報（ドック期間）
     """
     new_periods = []
 
-    # 今年
-    this_year = datetime.date.today().year
-    # 翌年
-    next_year = this_year + 1
+    base_periods = pref_schedule_info['periods']
+    subtract_periods = refered_schedule_info['periods']
+    # 前のスケジュール情報 pref_schedule_info['periods']がない場合
+    # 今年の1/1～来年の12/31とみなす
+    if (len(base_periods) == 0):
+        this_year = date.today().year
+        next_year = this_year + 1
+        base_periods = [{
+            'from': f'{this_year}/1/1',
+            'to': f'{next_year}/12/31'
+        }]
 
-    # 開始日
-    start_dt_str = f'{this_year}/1/1'
-    start_dt = datetime.datetime.strptime(start_dt_str, '%Y/%m/%d')
-    # 終了日
-    end_dt_str = f'{next_year}/12/31'
-    end_dt = datetime.datetime.strptime(end_dt_str, '%Y/%m/%d')
-
-    # 今年の1/1から12/31の範囲で、refered_schedule_info.
-    for p in refered_schedule_info['periods']:
-        # 参考のfrom/to
-        period_from = p['from']
-        period_to = p['to']
-        period_from_dt = datetime.datetime.strptime(
-            period_from, '%Y/%m/%d')
-        period_to_dt = datetime.datetime.strptime(
-            period_to, '%Y/%m/%d')
-
-        # fromの前日
-        period_from_dt_pre = period_from_dt - datetime.timedelta(1)
-        # toの翌日
-        period_to_dt_next = period_to_dt + datetime.timedelta(1)
-
-        # もしfromの前日(toになる)が、end_dtより先の場合は、
-        # end_dtを最終日にする
-        if (end_dt < period_from_dt_pre):
-            period_from_dt_pre = end_dt
-
-        # 追加
-        new_periods.append({
-            'from': start_dt.strftime('%Y/%m/%d'),
-            'to': period_from_dt_pre.strftime('%Y/%m/%d')
-        })
-
-        # 次のためのstart_dtを更新
-        # toの翌日か、end_dtの小さいほう
-        if (period_to_dt_next < end_dt):
-            # 普通はこちら
-            start_dt = period_to_dt_next
-        else:
-            # periodの日付がおかしかったり、end_dtが短い場合にこれになりうる
-            start_dt = end_dt
-
-    # 最後のfromとto
-    # start_dtから、end_dtまで
-    new_periods.append({
-        'from': start_dt.strftime('%Y/%m/%d'),
-        'to': end_dt.strftime('%Y/%m/%d')
-    })
+    # 元の日付から、ドック期間を除く
+    new_periods = dates_subtract(base_periods, subtract_periods)
 
     # 対象を返す
     return new_periods
