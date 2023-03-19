@@ -33,6 +33,12 @@ def get_sea_route_schedules(page_info):
     # HTML取得
     lxml_data = get_page(page_info['url'])
 
+    # このページのタイトル（サブタイトルとなる）を取得
+    sub_title = ''
+    sub_title_span = lxml_data.xpath('//*[@id="page-content"]/h2/span')
+    if (len(sub_title_span) > 0):
+        sub_title = sub_title_span[0].text
+
     # block-listsのdivを順番に見る
     div_blocks = lxml_data.xpath('//*[@id="block-lists"]/div')
     start_schedule_block = False
@@ -76,7 +82,7 @@ def get_sea_route_schedules(page_info):
                     ret[len(ret)-2],    # 前の情報
                     ret[len(ret)-1]     # 元となる、今の情報
                 )
-                print(period_info)
+                # print(period_info)
                 ret[len(ret)-2]['periods'] = period_info
 
                 write_period_next = False
@@ -93,10 +99,9 @@ def get_sea_route_schedules(page_info):
 
             # スケジュール情報を読んで作成
             schedule_info, got_period_info = read_schedule_start_block(b)
-            print('スケジュール開始ブロック')
-            print('got_period_info:'+('True' if got_period_info else 'False'))
 
-            # ついでにURLも書いておく
+            # ついでに、サブタイトルとURLも書いておく
+            schedule_info['sub_title'] = sub_title
             schedule_info['url'] = get_full_url(page_info['url'])
 
     # test_print_schedule_info(ret)

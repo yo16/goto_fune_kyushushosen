@@ -34,10 +34,12 @@ def format_to_goto_fune(schedule_infos, output_dir='./output'):
     for si in schedule_infos:
         sche_name = si['schedule_name']
         print(f'schedule_name:{sche_name}')
+        sub_title = si['sub_title']
         url = si['url']
 
         ship_info = {
             'title': sche_name,
+            'sub_title': sub_title,
             'timetable_url': url,
             'periods': []
         }
