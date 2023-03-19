@@ -93,6 +93,8 @@ def get_sea_route_schedules(page_info):
 
             # スケジュール情報を読んで作成
             schedule_info, got_period_info = read_schedule_start_block(b)
+            print('スケジュール開始ブロック')
+            print('got_period_info:'+('True' if got_period_info else 'False'))
 
             # ついでにURLも書いておく
             schedule_info['url'] = get_full_url(page_info['url'])
@@ -145,7 +147,14 @@ def read_schedule_start_block(block):
 
     periods = parse_date_comment(comment)
 
-    return {'schedule_name': schedule_name, 'periods': periods}, (len(periods) > 0)
+    # コメントに"ドックダイヤ時を除く"って書いてあったら、
+    # 次のブロックのドックダイヤを考慮して除外する必要があると判断して、
+    # 時刻は取得できたとはしない。（十分な時刻を取得できていないとする）
+    got_period_info = (len(periods) > 0)
+    if re.search(r'ドックダイヤ時を除く', comment):
+        got_period_info = False
+
+    return {'schedule_name': schedule_name, 'periods': periods}, got_period_info
 
 
 def parse_date_comment(c):
