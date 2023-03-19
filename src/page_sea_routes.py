@@ -147,11 +147,14 @@ def read_schedule_start_block(block):
 
     periods = parse_date_comment(comment)
 
-    # コメントに"ドックダイヤ時を除く"って書いてあったら、
+    # スケジュール名かコメントに"ドックダイヤ時を除く"って書いてあったら、
     # 次のブロックのドックダイヤを考慮して除外する必要があると判断して、
     # 時刻は取得できたとはしない。（十分な時刻を取得できていないとする）
     got_period_info = (len(periods) > 0)
-    if re.search(r'ドックダイヤ時を除く', comment):
+    if (
+        re.search(r'ドックダイヤ時を除く', schedule_name) or
+        re.search(r'ドックダイヤ時を除く', comment)
+    ):
         got_period_info = False
 
     return {'schedule_name': schedule_name, 'periods': periods}, got_period_info
