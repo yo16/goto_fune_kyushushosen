@@ -1,7 +1,7 @@
 import json
 import os
 
-from .common import get_today_str, PORTS
+from .common import get_today_str, map_name2id
 
 
 def to_goto_fune(schedule_infos, output_dir='./output'):
@@ -20,9 +20,6 @@ def to_goto_fune(schedule_infos, output_dir='./output'):
         'ship_campany': 0,
         'ships': []
     }
-
-    # 港の名前→idの対応表を作成
-    map_name2id = {p['name']: p['id'] for p in PORTS}
 
     for si in schedule_infos:
         sche_name = si['schedule_name']
