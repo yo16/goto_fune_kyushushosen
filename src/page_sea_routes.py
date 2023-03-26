@@ -176,7 +176,7 @@ def parse_date_comment(c):
             {from, to}
         ]
     """
-    debug_parse_date_comment = True
+    debug_parse_date_comment = False
     ret = []
     if (debug_parse_date_comment):
         print('parse_date_comment start')
@@ -319,7 +319,7 @@ def read_schedule_block(block):
                 },]
             },]
     """
-    debug_read_schedule_block1 = True
+    debug_read_schedule_block1 = False
     if debug_read_schedule_block1:
         print('read_schedule_block')
 
