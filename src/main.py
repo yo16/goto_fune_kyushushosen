@@ -3,7 +3,7 @@
 
 from page_top import get_shipping_page_name_links
 from page_sea_routes import get_sea_route_schedules
-from format_to import format_to_goto_fune
+from format_to import format_to_goto_fune, format_to_sqlite
 
 
 def main():

@@ -11,7 +11,7 @@ PORTS = [
 ]
 
 
-def format_to_goto_fune(schedule_infos, output_dir='./output'):
+def to_goto_fune(schedule_infos, output_dir='./output'):
     """goto_funeのtimetables.jsに書くためのフォーマットに変換
     goto_fune
         https://github.com/yo16/goto_fune
