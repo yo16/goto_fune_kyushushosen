@@ -20,7 +20,8 @@ def main():
         schedules.extend(schedule_list)
 
     # print(schedules)
-    format_to_goto_fune(schedules)
+    # format_to_goto_fune(schedules)
+    format_to_sqlite(schedules)
 
 
 if __name__ == '__main__':
